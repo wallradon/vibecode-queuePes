@@ -8,9 +8,7 @@
   <link rel="stylesheet" href="style.css">
 
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 
@@ -20,10 +18,15 @@
     <div class="login-box">
       <div class="logo-container"><img src="logo.png" alt="Logo" class="site-logo"></div>
       <h2>ADMIN LOGIN</h2>
+
+      <input type="email" id="adminEmail" placeholder="EMAIL (admin@shop.com)"
+        style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+
       <input type="password" id="adminPass" placeholder="PASSWORD"
         style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+
       <button onclick="checkLogin()" style="width: 100%;">ACCESS</button>
-      <p id="loginError" style="color:red; display:none; margin-top:10px; font-size: 12px;">INCORRECT PASSWORD</p>
+      <p id="loginError" style="color:red; display:none; margin-top:10px; font-size: 12px;">LOGIN FAILED</p>
     </div>
   </div>
 
@@ -33,7 +36,7 @@
         <img src="logo.png" style="height:30px;">
         <h2 style="margin:0;">QUEUE MANAGER</h2>
       </div>
-      <button onclick="location.reload()" class="btn-outline">LOGOUT</button>
+      <button onclick="logout()" class="btn-outline">LOGOUT</button>
     </header>
 
     <div class="input-group">
@@ -74,13 +77,20 @@
       appId: "1:440285644844:web:ed788db8a1827fa1e82989",
       measurementId: "G-Z80T43KV3D"
     };
+
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
+
     function checkLogin() {
+      // 👇 2. ดึงค่าจากช่องที่เราพิมพ์ แทนการ Fix ค่าครับ
+      const email = document.getElementById('adminEmail').value;
       const pass = document.getElementById('adminPass').value;
-      // ใช้อีเมลที่เราตั้งใน Firebase Console (ไม่ต้องให้ User กรอก email ก็ได้ Fix ไว้ในโค้ดเลยเพื่อความง่าย)
-      const email = "minfacemaker@pes.com";
+
+      if (!email || !pass) {
+        alert("Please enter Email and Password");
+        return;
+      }
 
       auth.signInWithEmailAndPassword(email, pass)
         .then((userCredential) => {
@@ -93,11 +103,11 @@
           // ถ้า Login ไม่ผ่าน
           console.error(error);
           document.getElementById('loginError').style.display = 'block';
-          document.getElementById('loginError').innerText = "รหัสผ่านผิดครับ (Password Invalid)";
+          document.getElementById('loginError').innerText = "Incorrect Email or Password";
         });
     }
 
-    // เพิ่ม: ตรวจสอบสถานะ (ถ้าเคย Login แล้วไม่ต้องกรอกใหม่)
+    // ตรวจสอบสถานะ (ถ้าเคย Login แล้วไม่ต้องกรอกใหม่)
     auth.onAuthStateChanged((user) => {
       if (user) {
         document.getElementById('loginOverlay').style.display = 'none';
@@ -112,7 +122,7 @@
       });
     }
 
-    // --- Logic 1: สร้าง ID และเช็คซ้ำ (Recursive Check) ---
+    // --- Logic 1: สร้าง ID และเช็คซ้ำ ---
     function generateID() { return Math.random().toString(36).substr(2, 6).toUpperCase(); }
 
     function addQueue() {
@@ -123,7 +133,6 @@
 
       if (!name || !count) return alert("Please fill all fields");
 
-      // เรียกฟังก์ชัน saveWithUniqueCheck แทนการ save ตรงๆ
       saveWithUniqueCheck({
         type: type,
         name: name,
@@ -137,13 +146,11 @@
 
     function saveWithUniqueCheck(data) {
       const id = generateID();
-      // เช็คก่อนว่า ID นี้มีใน Database หรือยัง
       db.ref('queues/' + id).once('value').then(snapshot => {
         if (snapshot.exists()) {
           console.log("ID ซ้ำ! กำลังสุ่มใหม่...");
-          saveWithUniqueCheck(data); // ถ้าซ้ำ ให้เรียกตัวเองใหม่ (Loop) จนกว่าจะไม่ซ้ำ
+          saveWithUniqueCheck(data);
         } else {
-          // ถ้าไม่ซ้ำ ก็บันทึกได้เลย
           db.ref('queues/' + id).set({ ...data, id: id });
           clearInputs();
         }
@@ -157,8 +164,9 @@
       document.getElementById('qType').value = 'Normal';
     }
 
-    // --- Logic 2: โหลดข้อมูล + ลบอัตโนมัติถ้าหมดประกัน ---
+    // --- Logic 2: โหลดข้อมูล + เรียงลำดับ (ตามเวลา) + ลบอัตโนมัติ ---
     function loadQueue() {
+      // ใช้ orderByChild เพื่อเรียงลำดับมาเลย
       db.ref('queues').orderByChild('orderDate').on('value', (snapshot) => {
         const tbody = document.getElementById('queueTableBody');
         tbody.innerHTML = '';
@@ -166,14 +174,12 @@
         snapshot.forEach((child) => {
           const item = child.val();
 
-          // ตรวจสอบ: ถ้าเสร็จแล้ว และ หมดประกัน (เกิน 3 วัน) -> ลบทิ้ง!
           if (item.status === 'finished' && !checkWarranty(item.finishedDate)) {
             console.log(`Auto Deleting Expired ID: ${item.id}`);
-            db.ref('queues/' + item.id).remove(); // ลบออกจาก Database จริงๆ
-            return; // ไม่ต้องแสดงในตาราง
+            db.ref('queues/' + item.id).remove();
+            return;
           }
 
-          // แสดงผลปกติ
           const date = new Date(item.orderDate).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
           let typeBadge = item.type === 'VIP' ? '<span class="type-vip">VIP</span>' : '';
 
@@ -181,33 +187,32 @@
           if (item.status === 'waiting') statusBadge = '<span class="badge badge-wait">WAITING</span>';
           else if (item.status === 'working') statusBadge = '<span class="badge badge-work">WORKING</span>';
           else {
-            // ปรับข้อความตามที่ขอ: เพิ่มคำว่า (ประกัน)
             statusBadge = '<span class="badge badge-done">FINISHED (ประกัน)</span>';
           }
 
           tbody.innerHTML += `
-                        <tr>
-                            <td style="font-family:monospace;">${item.id}</td>
-                            <td>${date}</td>
-                            <td>${typeBadge} <strong>${item.name}</strong> (${item.model})</td>
-                            <td style="color:#777; font-size:12px;">${item.comment || '-'}</td>
-                            <td>${statusBadge}</td>
-                            <td>
-                                <button onclick="setStatus('${item.id}','working')" class="btn-outline">DO</button>
-                                <button onclick="setStatus('${item.id}','finished')" class="btn-outline">FIN</button>
-                                <button onclick="del('${item.id}')" class="btn-outline" style="border-color:red; color:red;">X</button>
-                            </td>
-                        </tr>
-                    `;
+              <tr>
+                  <td style="font-family:monospace;">${item.id}</td>
+                  <td>${date}</td>
+                  <td>${typeBadge} <strong>${item.name}</strong> (${item.model})</td>
+                  <td style="color:#777; font-size:12px;">${item.comment || '-'}</td>
+                  <td>${statusBadge}</td>
+                  <td>
+                      <button onclick="setStatus('${item.id}','working')" class="btn-outline">DO</button>
+                      <button onclick="setStatus('${item.id}','finished')" class="btn-outline">FIN</button>
+                      <button onclick="del('${item.id}')" class="btn-outline" style="border-color:red; color:red;">X</button>
+                  </td>
+              </tr>
+          `;
         });
       });
     }
 
     function checkWarranty(dateStr) {
-      if (!dateStr) return true; // ถ้าไม่มีวันที่ถือว่าไม่หมดประกัน (กันพลาด)
+      if (!dateStr) return true;
       const diff = new Date() - new Date(dateStr);
       const days = diff / (1000 * 60 * 60 * 24);
-      return days <= 3; // คืนค่า True ถ้ายังไม่เกิน 3 วัน
+      return days <= 3;
     }
 
     function setStatus(id, s) {
