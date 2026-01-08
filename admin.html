@@ -6,7 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ADMIN | MANAGER</title>
   <link rel="stylesheet" href="style.css">
+
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 
@@ -72,15 +76,40 @@
     };
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-
+    const auth = firebase.auth();
     function checkLogin() {
-      if (document.getElementById('adminPass').value === "209") {
+      const pass = document.getElementById('adminPass').value;
+      // ใช้อีเมลที่เราตั้งใน Firebase Console (ไม่ต้องให้ User กรอก email ก็ได้ Fix ไว้ในโค้ดเลยเพื่อความง่าย)
+      const email = "minfacemaker@pes.com";
+
+      auth.signInWithEmailAndPassword(email, pass)
+        .then((userCredential) => {
+          // ถ้า Login ผ่าน
+          document.getElementById('loginOverlay').style.display = 'none';
+          document.getElementById('adminPanel').style.display = 'block';
+          loadQueue();
+        })
+        .catch((error) => {
+          // ถ้า Login ไม่ผ่าน
+          console.error(error);
+          document.getElementById('loginError').style.display = 'block';
+          document.getElementById('loginError').innerText = "รหัสผ่านผิดครับ (Password Invalid)";
+        });
+    }
+
+    // เพิ่ม: ตรวจสอบสถานะ (ถ้าเคย Login แล้วไม่ต้องกรอกใหม่)
+    auth.onAuthStateChanged((user) => {
+      if (user) {
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('adminPanel').style.display = 'block';
         loadQueue();
-      } else {
-        document.getElementById('loginError').style.display = 'block';
       }
+    });
+
+    function logout() {
+      auth.signOut().then(() => {
+        location.reload();
+      });
     }
 
     // --- Logic 1: สร้าง ID และเช็คซ้ำ (Recursive Check) ---
@@ -130,7 +159,7 @@
 
     // --- Logic 2: โหลดข้อมูล + ลบอัตโนมัติถ้าหมดประกัน ---
     function loadQueue() {
-      db.ref('queues').on('value', (snapshot) => {
+      db.ref('queues').orderByChild('orderDate').on('value', (snapshot) => {
         const tbody = document.getElementById('queueTableBody');
         tbody.innerHTML = '';
 
