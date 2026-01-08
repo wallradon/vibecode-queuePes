@@ -42,14 +42,13 @@
             <tr>
               <th>QUEUE ID</th>
               <th>TYPE</th>
-              <th>CUSTOMER</th>
               <th>TIME</th>
               <th>STATUS</th>
             </tr>
           </thead>
           <tbody id="boardTable">
             <tr>
-              <td colspan="5" style="text-align:center;">Loading...</td>
+              <td colspan="4" style="text-align:center;">Loading...</td>
             </tr>
           </tbody>
         </table>
@@ -58,7 +57,7 @@
   </div>
 
   <script>
-    // --- ⚠️ Config Firebase ของน้อง (อย่าลืมใส่ตรงนี้นะครับ!) ---
+    // --- ⚠️ Config Firebase ของน้อง ---
     const firebaseConfig = {
       apiKey: "AIzaSyBgL1Lg8-ASTob81B00N70LmFpGIzoYEt8",
       authDomain: "database-queuepes.firebaseapp.com",
@@ -79,46 +78,38 @@
       tbody.innerHTML = '';
 
       if (!snapshot.exists()) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No Queue Available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No Queue Available</td></tr>';
         return;
       }
 
-      // 1. สร้าง Array ว่างๆ เพื่อเก็บข้อมูลก่อน
       let queueList = [];
-
-      // 2. วนลูปเก็บข้อมูลจาก Firebase ลง Array
       snapshot.forEach((child) => {
         queueList.push(child.val());
       });
 
-      // 3. สั่งเรียงลำดับ (Sort) : มากไปน้อย (ใหม่สุดขึ้นก่อน)
+      // เรียงลำดับ: น้อยไปมาก (เก่าสุดขึ้นก่อน)
       queueList.sort((a, b) => {
-        // เอาเวลาของ b ลบ a (ถ้าอยากได้ น้อยไปมาก ให้เอา a - b)
         return new Date(a.orderDate) - new Date(b.orderDate);
       });
 
-      // 4. วนลูป Array ที่เรียงแล้ว เพื่อแสดงผล
       queueList.forEach((item) => {
-
-        // แปลงวันเวลา (เอาแค่วัน/เดือน เวลา)
         const dateObj = new Date(item.orderDate);
         const dateStr = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'numeric' }) + ' ' +
           dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-        // Badge VIP
         let typeShow = item.type === 'VIP' ? '<span class="type-vip">VIP</span>' : '<span style="color:#ccc;">-</span>';
 
-        // Badge Status
         let statusShow = '';
         if (item.status === 'waiting') statusShow = '<span class="badge badge-wait">WAITING</span>';
         else if (item.status === 'working') statusShow = '<span class="badge badge-work">WORKING</span>';
         else statusShow = '<span class="badge badge-done">FINISHED (ประกัน)</span>';
 
+        // ลบชื่อออกจากตารางตรงนี้
         tbody.innerHTML += `
             <tr>
                 <td style="font-family:monospace; font-weight:bold;">${item.id}</td>
                 <td style="text-align:center;">${typeShow}</td>
-                <td>${item.name}</td> <td>${dateStr}</td>
+                <td>${dateStr}</td>
                 <td>${statusShow}</td>
             </tr>
         `;
@@ -138,10 +129,10 @@
           const data = snapshot.val();
           resBox.style.display = 'block';
 
-          // ชื่อ + VIP Tag
-          let nameHtml = data.name;
-          if (data.type === 'VIP') nameHtml = '★ VIP Customer: ' + data.name;
-          document.getElementById('resName').innerHTML = nameHtml;
+          // เปลี่ยนการแสดงผลชื่อ เป็นแสดงประเภทงานแทน
+          let titleHtml = 'ORDER DETAILS';
+          if (data.type === 'VIP') titleHtml = '★ VIP ORDER';
+          document.getElementById('resName').innerHTML = titleHtml;
 
           // สถานะ
           if (data.status === 'waiting') document.getElementById('resStatus').innerText = 'WAITING FOR QUEUE';
