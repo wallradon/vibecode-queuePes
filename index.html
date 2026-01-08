@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QUEUE BOARD</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="logo-container">
+      <img src="logo.png" alt="Logo" class="site-logo">
+    </div>
+
+    <div class="search-section">
+      <h2>SEARCH YOUR ORDER</h2>
+      <div class="input-group" style="max-width: 600px; margin: 0 auto;">
+        <input type="text" id="searchId" placeholder="ENTER ORDER ID (e.g. X1Y2Z3)"
+          style="text-align:center; font-family:monospace; letter-spacing:2px;">
+        <button onclick="searchQueue()" style="flex:0.4;">FIND</button>
+      </div>
+
+      <div id="resultBox"
+        style="display:none; text-align:center; margin-top:20px; border:1px solid black; padding:20px;">
+        <h3 id="resName" style="margin:0;">-</h3>
+        <p id="resStatus" style="font-size:20px; font-weight:bold; margin:10px 0;">-</p>
+        <div id="warrantyBox" style="display:none; background:black; color:white; padding:5px; display:inline-block;">
+        </div>
+      </div>
+    </div>
+
+    <div class="board-section">
+      <h2>CURRENT QUEUE BOARD</h2>
+      <div class="queue-board">
+        <table>
+          <thead>
+            <tr>
+              <th>QUEUE ID</th>
+              <th>TYPE</th>
+              <th>CUSTOMER</th>
+              <th>TIME</th>
+              <th>STATUS</th>
+            </tr>
+          </thead>
+          <tbody id="boardTable">
+            <tr>
+              <td colspan="5" style="text-align:center;">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- ⚠️ Config Firebase ของน้อง ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBgL1Lg8-ASTob81B00N70LmFpGIzoYEt8",
+      authDomain: "database-queuepes.firebaseapp.com",
+      databaseURL: "https://database-queuepes-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "database-queuepes",
+      storageBucket: "database-queuepes.firebasestorage.app",
+      messagingSenderId: "440285644844",
+      appId: "1:440285644844:web:ed788db8a1827fa1e82989",
+      measurementId: "G-Z80T43KV3D"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- A. โหลดคิวทั้งหมดมาแสดงในตาราง (Realtime) ---
+    db.ref('queues').on('value', (snapshot) => {
+      const tbody = document.getElementById('boardTable');
+      tbody.innerHTML = '';
+
+      if (!snapshot.exists()) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No Queue Available</td></tr>';
+        return;
+      }
+
+      snapshot.forEach((child) => {
+        const item = child.val();
+
+        // แปลงวันเวลา (เอาแค่วัน/เดือน เวลา)
+        const dateObj = new Date(item.orderDate);
+        const dateStr = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'numeric' }) + ' ' +
+          dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+        // Badge VIP
+        let typeShow = item.type === 'VIP' ? '<span class="type-vip">VIP</span>' : '<span style="color:#ccc;">-</span>';
+
+        // Badge Status
+        let statusShow = '';
+        if (item.status === 'waiting') statusShow = '<span class="badge badge-wait">WAITING</span>';
+        else if (item.status === 'working') statusShow = '<span class="badge badge-work">WORKING</span>';
+        else statusShow = '<span class="badge badge-done">FINISHED (ประกัน)</span>'; // เพิ่มตรงนี้
+        tbody.innerHTML += `
+                    <tr>
+                        <td style="font-family:monospace; font-weight:bold;">${item.id}</td>
+                        <td style="text-align:center;">${typeShow}</td>
+                        <td>${item.name}</td> <td>${dateStr}</td>
+                        <td>${statusShow}</td>
+                    </tr>
+                `;
+      });
+    });
+
+    // --- B. ค้นหาคิวตัวเอง (Search Function) ---
+    function searchQueue() {
+      const id = document.getElementById('searchId').value.trim().toUpperCase();
+      if (!id) return;
+
+      db.ref('queues/' + id).once('value').then((snapshot) => {
+        const resBox = document.getElementById('resultBox');
+        const warBox = document.getElementById('warrantyBox');
+
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          resBox.style.display = 'block';
+
+          // ชื่อ + VIP Tag
+          let nameHtml = data.name;
+          if (data.type === 'VIP') nameHtml = '★ VIP Customer: ' + data.name;
+          document.getElementById('resName').innerHTML = nameHtml;
+
+          // สถานะ
+          if (data.status === 'waiting') document.getElementById('resStatus').innerText = 'WAITING FOR QUEUE';
+          else if (data.status === 'working') document.getElementById('resStatus').innerText = 'NOW SERVING / WORKING';
+          else {
+            document.getElementById('resStatus').innerText = 'ORDER FINISHED';
+            // เช็คประกัน
+            if (checkWarranty(data.finishedDate)) {
+              warBox.style.display = 'inline-block';
+              warBox.innerText = 'WARRANTY ACTIVE (3 DAYS)';
+            } else {
+              warBox.style.display = 'inline-block';
+              warBox.style.background = 'transparent';
+              warBox.style.color = 'black';
+              warBox.style.border = '1px solid black';
+              warBox.innerText = 'WARRANTY EXPIRED';
+            }
+          }
+        } else {
+          alert("ID Not Found");
+          resBox.style.display = 'none';
+        }
+      });
+    }
+
+    function checkWarranty(d) {
+      if (!d) return false;
+      const diff = new Date() - new Date(d);
+      return (diff / (86400000)) <= 3;
+    }
+  </script>
+</body>
+
+</html>

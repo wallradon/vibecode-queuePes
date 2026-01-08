@@ -1,0 +1,109 @@
+/* style.css */
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap');
+
+:root {
+    --bg-main: #ffffff;
+    --text-primary: #000000;
+    --text-secondary: #555555;
+    --border-color: #dddddd;
+    --accent-black: #000000;
+    --accent-gray: #f9f9f9;
+}
+
+body {
+    font-family: 'Sarabun', sans-serif;
+    background: var(--bg-main);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    min-height: 90vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 900px;
+    background: #ffffff;
+    padding: 30px;
+    border: 1px solid var(--border-color);
+}
+
+/* === Logo === */
+.logo-container { text-align: center; margin-bottom: 20px; }
+.site-logo { max-width: 150px; display: block; margin: 0 auto; }
+
+h1, h2 { text-align: center; font-weight: 600; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* === Inputs & Buttons === */
+.input-group { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+input, select {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 0;
+    font-family: inherit;
+    flex: 1; /* ขยายเต็มพื้นที่ */
+}
+input:focus, select:focus { outline: none; border-color: var(--accent-black); }
+
+button {
+    padding: 10px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    text-transform: uppercase;
+    border: 2px solid var(--accent-black);
+    background: var(--accent-black);
+    color: white;
+    transition: 0.3s;
+}
+button:hover { background: white; color: var(--accent-black); }
+
+.btn-outline { background: white; color: var(--accent-black); border: 1px solid var(--accent-black); padding: 5px 10px; font-size: 12px; }
+.btn-outline:hover { background: var(--accent-black); color: white; }
+
+/* === Table === */
+/* === Table === */
+table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  margin-top: 20px; 
+  table-layout: fixed; /* (เพิ่ม) ช่วยเฉลี่ยความกว้างคอลัมน์ให้เท่าๆ กัน ดูสวยขึ้น */
+}
+
+th { 
+  background: var(--accent-black); 
+  color: white; 
+  padding: 12px; 
+  text-transform: uppercase; 
+  font-size: 14px; 
+  text-align: center; /* (แก้) สั่งจัดกึ่งกลางแนวนอน */
+}
+
+td { 
+  border-bottom: 1px solid var(--border-color); 
+  padding: 12px; 
+  font-size: 14px; 
+  text-align: center;     /* (แก้) สั่งจัดกึ่งกลางแนวนอน */
+  vertical-align: middle; /* (เพิ่ม) สั่งจัดกึ่งกลางแนวตั้ง */
+}
+
+/* === Badges === */
+.badge { padding: 4px 8px; font-size: 11px; font-weight: bold; border: 1px solid var(--accent-black); text-transform: uppercase; display: inline-block; min-width: 60px; text-align: center; }
+
+/* Status Styles */
+.badge-wait { background: white; color: #555; border-style: dashed; }
+.badge-work { background: white; color: black; border-style: solid; }
+.badge-done { background: black; color: white; }
+
+/* VIP Style */
+.type-vip { background: black; color: white; font-weight: bold; padding: 2px 6px; border-radius: 2px; font-size: 10px; margin-right: 5px; }
+.type-normal { display: none; } /* Normal ไม่ต้องโชว์ป้าย */
+
+/* === Customer View Specific === */
+.search-section { border-bottom: 2px solid var(--accent-black); padding-bottom: 30px; margin-bottom: 30px; }
+.queue-board { max-height: 500px; overflow-y: auto; } /* เลื่อนดูได้ถ้าคิวเยอะ */
+
+/* === Login === */
+.login-modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.95); display:flex; justify-content:center; align-items:center; z-index:99; }
+.login-box { background: white; border: 2px solid black; padding: 40px; width: 300px; text-align: center; }
